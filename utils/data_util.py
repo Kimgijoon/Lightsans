@@ -2,7 +2,9 @@ import pickle
 from typing import Dict, Tuple, List
 from collections import OrderedDict
 
+import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 
 def load_interaction(filepath: str, max_item_list_len: int) -> Tuple:
@@ -101,7 +103,53 @@ def _one_hot(label_idx: int, total_num: int) -> List:
     return result
 
 
+def split_data(data: List, split_size: float) -> Tuple:
+    """Split arrays or matrices into random train and test subsets
+
+    Args:
+        data (List): Process data
+        split_size (float): The proportion of the dataset to include in the train split
+
+    Returns:
+        List: List containing train-test split of inputs
+    """
+    trainset, testset = [], []
+    for i in data:
+        x, y = train_test_split(i, test_size=split_size)
+        trainset.append(x)
+        testset.append(y)
+
+    return trainset, testset
+
+
+def chunk_data(data: List, chunk_size: int) -> Tuple:
+    """Split an array into multiple sub-arrays
+
+    Args:
+        data (int): Process data
+        chunk_size (int): Split size by integer N
+
+    Returns:
+        Tuple: Chunk data
+    """
+    uid_list, seq_list, seq_len_list, label_list = data
+    uid_list = np.array_split(uid_list, chunk_size)
+    seq_list = np.array_split(seq_list, chunk_size)
+    seq_len_list = np.array_split(seq_len_list, chunk_size)
+    label_list = np.array_split(label_list, chunk_size)
+
+    return uid_list, seq_list, seq_len_list, label_list
+
+
 if __name__ == "__main__":
     
     filepath = 'data/raw/ml-100k.inter'
     data, dataset_info = load_interaction(filepath, 200)
+    
+    valid_ratio, test_ratio = 0.2, 0.1
+    trainset, testset = split_data(data, test_ratio)
+    trainset, validset = split_data(trainset, valid_ratio)
+    
+    chunk_size = 10
+    trainset = chunk_data(trainset, chunk_size)
+    validset = chunk_data(validset, chunk_size)
