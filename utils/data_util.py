@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
 
@@ -139,6 +140,41 @@ def chunk_data(data: List, chunk_size: int) -> Tuple:
     label_list = np.array_split(label_list, chunk_size)
 
     return uid_list, seq_list, seq_len_list, label_list
+
+
+def get_features_from_tfrecord(feature_description: Dict,
+                               data_dir: str,
+                               batch_size: int,
+                               shuffle_size: int,
+                               data_type: str) -> tf.data.Dataset:
+    """Load tfrecord, parse features in the tfrecord and return TFRecordDataset class
+    i.e. this function is input pipelines
+    Args:
+        data_dir (str): Directory related to tfrecord files
+        batch_size (int): Number of samples per gradient update
+        max_seq_len (int): Maximum length of all sequences
+        data_type (str): Flag that distinguishes whether the data is for train or valid
+        
+    Returns:
+        tf.data.Dataset: Parsed TFRecordDataset
+    """
+    def _parser(tfrecord):
+        example = tf.io.parse_single_example(tfrecord, feature_description)
+        label = example.pop('label')
+        return example, label
+    
+    dataset = tf.data.Dataset.list_files(f'{data_dir}/{data_type}*')
+    dataset = dataset.interleave(lambda x: tf.data.TFRecordDataset(x),
+                                 cycle_length=4,
+                                 num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.map(_parser, num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.cache()
+    dataset = dataset.shuffle(buffer_size=shuffle_size)
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.prefetch(tf.data.AUTOTUNE)
+    
+    return dataset
+
 
 
 if __name__ == "__main__":
