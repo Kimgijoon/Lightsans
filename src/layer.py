@@ -138,3 +138,38 @@ class ItemToInterestAggregation(tf.Module):
         result = tf.einsum('nij,nik->nkj', x, D_matrix)
 
         return result
+    
+    
+class FeedForward(tf.Module):
+
+    def __init__(self,
+                 hidden_size: int,
+                 inner_size: int,
+                 hidden_dropout_prob: float,
+                 hidden_act: str,
+                 layer_norm_eps: float):
+        super(FeedForward, self).__init__()
+
+        self.dense_1 = Dense(inner_size,
+                             input_shape=(hidden_size,),
+                             activation=hidden_act)
+        self.dense_2 = Dense(hidden_size,
+                             input_shape=(inner_size,))
+        self.layernorm = LayerNormalization(epsilon=layer_norm_eps)
+        self.dropout = Dropout(hidden_dropout_prob)
+
+    def __call__(self, x: tf.Tensor, is_training: bool) -> tf.Tensor:
+        """Point-wise feed-forward layer is implemented by two dense layers
+
+        Args:
+            x (tf.Tensor): the input of the point-wise feed-forward layer
+
+        Returns:
+            hidden_states (tf.Tensor): the output of the point-wise feed-forward layer
+        """
+        hidden_states = self.dense_1(x)
+        hidden_states = self.dense_2(hidden_states)
+        hidden_states = self.dropout(hidden_states, is_training)
+        hidden_states = self.layernorm(hidden_states + x)
+
+        return hidden_states
