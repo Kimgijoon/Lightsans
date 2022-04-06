@@ -1,6 +1,99 @@
+from typing import Optional
+
 import tensorflow as tf
 from tensorflow.keras.layers import Dense, LayerNormalization, Dropout
 from tensorflow.keras.initializers import RandomNormal
+
+
+class LightTransformerEncoder(tf.Module):
+
+    def __init__(self,
+                 n_layers: int=2,
+                 n_heads: int=2,
+                 k_interests: int=5,
+                 hidden_size: int=64,
+                 seq_len: int=50,
+                 inner_size: int=256,
+                 hidden_dropout_prob: float=0.5,
+                 attn_dropout_prob: float=0.5,
+                 hidden_act: str='gelu',
+                 layer_norm_eps: float=1e-12,
+                 initializer_range: float=0.02,
+                 name: Optional[str]=None):
+        super(LightTransformerEncoder, self).__init__(name=name)
+
+        self.n_layers = n_layers
+        layer = LightTransformerLayer(n_heads,
+                                      k_interests,
+                                      hidden_size,
+                                      seq_len,
+                                      inner_size,
+                                      hidden_dropout_prob,
+                                      attn_dropout_prob,
+                                      hidden_act,
+                                      layer_norm_eps,
+                                      initializer_range)
+        self.layers = [layer for _ in range(n_layers)]
+
+    def __call__(self, x: tf.Tensor, pos_emb: tf.Tensor, is_training: bool) -> tf.Tensor:
+        """LightTransformerEncoder consists of LightTransformer's last layer.
+
+        Args:
+            x (tf.Tensor): the input of the LightTransformerEncoder
+            pos_emb (tf.Tensor): the layer of position embedding
+
+        Returns:
+            tf.Tensor: last layer's hidden states
+        """
+        for i in range(self.n_layers):
+            x = self.layers[i](x, pos_emb, is_training)
+
+        return x
+
+
+class LightTransformerLayer(tf.Module):
+
+    def __init__(self,
+                 n_heads: int,
+                 k_interests: int,
+                 hidden_size: int,
+                 seq_len: int,
+                 intermediate_size: int,
+                 hidden_dropout_prob: float,
+                 attn_dropout_prob: float,
+                 hidden_act: str,
+                 layer_norm_eps: float,
+                 initializer_range: float):
+        super(LightTransformerLayer, self).__init__()
+
+        self.multi_head_attention = LightMultiHeadAttention(n_heads,
+                                                            k_interests,
+                                                            hidden_size,
+                                                            seq_len,
+                                                            hidden_dropout_prob,
+                                                            attn_dropout_prob,
+                                                            layer_norm_eps,
+                                                            initializer_range)
+        self.feed_forward = FeedForward(hidden_size,
+                                        intermediate_size,
+                                        hidden_dropout_prob,
+                                        hidden_act,
+                                        layer_norm_eps)
+
+    def __call__(self, hidden_states: tf.Tensor, pos_emb: tf.Tensor, is_training: bool) -> tf.Tensor:
+        """Transformer layer consists of a multi-head self-attention layer and a point-wise feed-forward layer.
+
+        Args:
+            hidden_states (tf.Tensor): the input of the multi-head self-attention sublayer
+            pos_emb (tf.Tensor): the layer of position embedding
+
+        Returns:
+            feedforward_output (tf.Tensor)): the output of the point-wise feed-forward sublayer, is the output of the transformer layer
+        """
+        attention_output = self.multi_head_attention(hidden_states, pos_emb, is_training)
+        feedforward_output = self.feed_forward(attention_output, is_training)
+
+        return feedforward_output
 
 
 class LightMultiHeadAttention(tf.Module):
@@ -138,7 +231,6 @@ class ItemToInterestAggregation(tf.Module):
         result = tf.einsum('nij,nik->nkj', x, D_matrix)
 
         return result
-    
     
 class FeedForward(tf.Module):
 
