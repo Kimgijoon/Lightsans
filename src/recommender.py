@@ -1,10 +1,11 @@
 import math
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple
 
 import tensorflow as tf
-import tensorflow_ranking as tfr
 from tensorflow.keras.metrics import Mean
+from tensorflow.keras.utils import Progbar
 from tensorflow.keras.losses import CategoricalCrossentropy
+import tensorflow_ranking as tfr
 
 from src.model import LightSANs
 import src.optimization as optimization
@@ -95,10 +96,15 @@ class SequentialRecommender(object):
     def train(self,
               trainset: tf.data.Dataset,
               validset: tf.data.Dataset):
-        
+        """train model
+
+        Args:
+            trainset (tf.data.Dataset): Tensorflow dataset class (train data)
+            validset (tf.data.Dataset): Tensorflow dataset class (test data)
+        """
         for epoch in range(self.epochs):
             print(f'Epoch: {epoch+1}/{self.epochs}')
-        
+            
             # Reset the metrics at the start of the next epoch
             self.train_loss.reset_states()
             self.valid_loss.reset_states()
@@ -107,11 +113,22 @@ class SequentialRecommender(object):
             self.train_mrr.reset_state()
             self.valid_mrr.reset_state()
             
+            p_bar = Progbar(self.steps_per_epoch)
             for step, (train_x, train_y) in enumerate(trainset):
                 self.train_step(train_x, train_y)
-            
+                values = [
+		            ('loss', self.train_loss.result()),
+                    ('ndcg', self.train_ndcg.result()),
+                    ('mrr', self.train_mrr.result())]
+                p_bar.update(step, values=values)
+                
             for valid_x, valid_y in validset:
                 self.valid_step(valid_x, valid_y)
+            values = [
+                ('val_loss', self.valid_loss.result()),
+                ('val_ndcg', self.valid_ndcg.result()),
+                ('val_mrr', self.valid_mrr.result())]
+            p_bar.add(1, values=values)
 
     def predict(self):
         pass
