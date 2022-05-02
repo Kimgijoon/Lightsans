@@ -97,7 +97,8 @@ class SequentialRecommender(object):
               trainset: tf.data.Dataset,
               validset: tf.data.Dataset,
               ckpt_path: Optional[str]=None,
-              save_period: Optional[int]=None):
+              save_period: Optional[int]=None,
+              summaries_path: Optional[str]=None):
         """train model
 
         Args:
@@ -105,12 +106,18 @@ class SequentialRecommender(object):
             validset (tf.data.Dataset): Tensorflow dataset class (test data)
             ckpt_path (Optional[str], optional): Path of checkpoint. Defaults to None
             save_period (Optional[int], optional): Number of epochs to train the model
+            summaries_path (Optional[str], optional): Path of tensorboard's logs. Defaults to None
         """
-        ckpt = tf.train.Checkpoint(model=self.model, optimizer=self.optimizer)
-        ckpt_manager = tf.train.CheckpointManager(ckpt, ckpt_path, max_to_keep=None)
-        if ckpt_manager.latest_checkpoint:
-            ckpt.restore(ckpt_manager.latest_checkpoint)
-            print('Latest checkpoint restored!!')
+        if ckpt_path:
+            ckpt = tf.train.Checkpoint(model=self.model, optimizer=self.optimizer)
+            ckpt_manager = tf.train.CheckpointManager(ckpt, ckpt_path, max_to_keep=None)
+            if ckpt_manager.latest_checkpoint:
+                ckpt.restore(ckpt_manager.latest_checkpoint)
+                print('Latest checkpoint restored!!')
+
+        if summaries_path:
+            train_summary_writer = tf.summary.create_file_writer(f'{summaries_path}/train')
+            test_summary_writer = tf.summary.create_file_writer(f'{summaries_path}/valid')
 
         for epoch in range(self.epochs):
             print(f'Epoch: {epoch+1}/{self.epochs}')
@@ -141,9 +148,23 @@ class SequentialRecommender(object):
             p_bar.add(1, values=values)
             
             # save checkpoint
-            if (epoch+1) % save_period == 0:
-                ckpt_save_path = ckpt_manager.save()
-                print(f'Saving checkpoint for epoch {epoch+1} at {ckpt_save_path}')
+            if ckpt_path:
+                if (epoch+1) % save_period == 0:
+                    ckpt_save_path = ckpt_manager.save()
+                    print(f'Saving checkpoint for epoch {epoch+1} at {ckpt_save_path}')
+                
+            if summaries_path:
+                # save log
+                with train_summary_writer.as_default():
+                    tf.summary.scalar('loss', self.train_loss.result(), step=epoch)
+                    tf.summary.scalar('ndcg', self.train_ndcg.result(), step=epoch)
+                    tf.summary.scalar('mrr', self.train_mrr.result(), step=epoch)
+                    tf.summary.scalar('lr', self.optimizer._decayed_lr('float32').numpy(), step=epoch)
+
+                with test_summary_writer.as_default():
+                    tf.summary.scalar('loss', self.valid_loss.result(), step=epoch)
+                    tf.summary.scalar('ndcg', self.valid_ndcg.result(), step=epoch)
+                    tf.summary.scalar('mrr', self.valid_mrr.result(), step=epoch)
 
     def predict(self):
         pass
