@@ -19,5 +19,18 @@ python main.py --op=preprocessing \
                --split_ratio=0.3, 0.1
 ```
 
+##### Train model
+example:
+```
+python3 main.py --op=train \
+                --data_dir=data \
+                --checkpoint_dir=checkpoints \
+                --config_dir=configs \
+                --logs_dir=logs \
+                --batch_size=128 \
+                --epochs=1000
+                --save_period=10
+```
+
 ### License
 * Apache License 2.0
