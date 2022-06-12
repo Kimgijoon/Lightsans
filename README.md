@@ -22,14 +22,22 @@ python main.py --op=preprocessing \
 ##### Train model
 example:
 ```
-python3 main.py --op=train \
-                --data_dir=data \
-                --checkpoint_dir=checkpoints \
-                --config_dir=configs \
-                --logs_dir=logs \
-                --batch_size=128 \
-                --epochs=1000
-                --save_period=10
+python main.py --op=train \
+               --data_dir=data \
+               --checkpoint_dir=checkpoints \
+               --config_dir=configs \
+               --logs_dir=logs \
+               --batch_size=128 \
+               --epochs=1000 \
+               --save_period=10
+```
+
+##### Inference
+example:
+```
+python main.py --op=predict \
+               --data_dir=data \
+               --checkpoint_dir=checkpoints
 ```
 
 ### License
