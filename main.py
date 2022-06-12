@@ -101,7 +101,38 @@ def main(_):
         logs_dir = f'{FLAGS.logs_dir}/{current_time}'
         lightsans.train(trainset, validset, ckpt_dir, FLAGS.save_period, logs_dir)
     else:
-        pass
+        """Predict"""
+        data_info_path = f'{FLAGS.data_dir}/prep/info.pickle'
+        with open(data_info_path, 'rb') as f:
+            data_info = pickle.load(f)
+
+        idx2item = data_info['idx2item']
+        item2idx = data_info['item2idx']
+
+        # sample test sequence
+        test_seq = [242, 302, 377]
+        test_seq_length = len(test_seq)
+
+        # remap item ids to indices
+        test_seq_convert = [item2idx[x] for x in test_seq]
+
+        # make feature dict
+        test_feature = {'sequence': [[test_seq_convert]], 'sequence_length': [[test_seq_length]]}
+        lightsans = SequentialRecommender(configs, FLAGS.batch_size, FLAGS.epochs, FLAGS.topk, is_training=False)
+        prediction = lightsans.predict(test_feature, FLAGS.checkpoint_dir)
+
+        # create list of (index, score) pair and sort in order of score. Larger score means high probability to buy that item.
+        pred_list = []
+        for idx, score in enumerate(prediction[0]):
+            pred_list.append((idx, score))
+
+        pred_list.sort(key=lambda x: (-x[1], x[0]))
+
+        # remap indices to item ids
+        print(idx2item[pred_list[0][0]])
+        print(pred_list[0][1])
+        print(idx2item[pred_list[1][0]])
+        print(pred_list[1][1])
 
 
 if __name__ == '__main__':

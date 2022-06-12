@@ -1,6 +1,7 @@
 import math
 from typing import Dict, Tuple, Optional
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 from tensorflow.keras.utils import Progbar
@@ -166,5 +167,19 @@ class SequentialRecommender(object):
                     tf.summary.scalar('ndcg', self.valid_ndcg.result(), step=epoch)
                     tf.summary.scalar('mrr', self.valid_mrr.result(), step=epoch)
 
-    def predict(self):
-        pass
+    def predict(self, test_seq: Dict, checkpoint_dir: str) -> np.ndarray:
+        """Predict next item of input sequence. This will return score for each item.
+
+        Args:
+            test_seq (Dict): feature dictionary of test sequence and sequence length
+            checkpoint_name (str): name of checkpoint
+
+        Returns:
+            np.ndarray: prediction score array
+        """
+        checkpoint_path = f'{checkpoint_dir}/checkpoint'
+        latest = tf.train.latest_checkpoint(checkpoint_path)
+        ckpt = tf.train.Checkpoint(model=self.model)
+        ckpt.restore(latest)
+
+        return self.model(test_seq).numpy()
