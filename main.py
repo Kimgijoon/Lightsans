@@ -95,7 +95,7 @@ def main(_):
                                           batch_size=FLAGS.batch_size,
                                           epochs=FLAGS.epochs,
                                           is_training=True,
-                                          topk=1)
+                                          topk=FLAGS.topk)
         current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
         ckpt_dir = f'{FLAGS.checkpoint_dir}/{current_time}'
         logs_dir = f'{FLAGS.logs_dir}/{current_time}'
